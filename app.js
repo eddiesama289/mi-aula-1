@@ -303,9 +303,11 @@ Object.entries(LEXICO).forEach(([id, groups]) => {
   groups.forEach((g) => { const items = g.items.filter((i) => !seen.has(i[0].toLowerCase())); if (items.length) u.vocab.unshift({ g: g.g, items }); });
 });
 const WR = "https://www.wordreference.com/es/en/translation.asp?spen=";
-const TABS = [["grammar", "Grammar"], ["vocabulary", "Vocabulary"], ["phrases", "Phrases"], ["practice", "Practice"]];
+const TABS = [["grammar", "Grammar"], ["vocabulary", "Vocabulary"], ["phrases", "Phrases"], ["practice", "Practice"], ["exam", "Exam"]];
+const TAB_ICON = { grammar: "📘", vocabulary: "🗂️", phrases: "💬", listen: "🎧", speak: "🎙️", practice: "✏️", exam: "🏆" };
+const UNIT_COLORS = ["#E2643B", "#2A8C82", "#E0A526", "#C2453A", "#3F6FA8", "#6E9B3C", "#B4568A", "#D9792B", "#4F8F9E", "#8A6BB0"];
 const $ = (s, r = document) => r.querySelector(s);
-const state = { unit: 1, tab: "grammar", hideEn: false };
+const state = { unit: 1, tab: "grammar", hideEn: false, starOnly: false };
 let progress = {};
 try { progress = JSON.parse(localStorage.getItem("mi-aula-1") || "{}") || {}; } catch (e) { progress = {}; }
 function save() { try { localStorage.setItem("mi-aula-1", JSON.stringify(progress)); } catch (e) {} }
@@ -319,11 +321,26 @@ function norm(s) { return s.trim().toLowerCase().replace(/\s+/g, " "); }
 function unitProg(u) { return progress["u" + u] || (progress["u" + u] = {}); }
 function score(u) { const p = unitProg(u); return Object.values(p).filter((x) => x.r === "ok").length; }
 
+function chipScore(u) {
+  const x = progress["x" + u.id];
+  if (x && x.best !== undefined) return `🏆 ${x.best} / 50`;
+  return `${score(u.id)} / ${u.ex.length} quick questions`;
+}
+/* Word colours: el/los words blue, la/las words red, verbs green, so gender and word type stick in memory */
+function wordKind(w) {
+  const s = w.trim().toLowerCase().replace(/[()]/g, "").replace(/\s+/g, " ");
+  if (/^(el|los|un|unos) /.test(s)) return /\/ *(la|las|una) /.test(s) ? "wk-both" : "wk-m";
+  if (/^(la|las|una|unas) /.test(s)) return "wk-f";
+  if (/^[a-záéíóúñ]+(ar|er|ir|ír)(se)?$/.test(s) && s.length > 3) return "wk-v";
+  return "";
+}
+function stars() { return progress.star || (progress.star = {}); }
+function starBtn(w) { const on = !!stars()[w]; return `<button class="star ${on ? "on" : ""}" data-star="${w.replace(/"/g, "&quot;")}" aria-pressed="${on}" aria-label="Star ${w.replace(/"/g, "")}">${on ? "★" : "☆"}</button>`; }
 function renderNav() {
   $("#units").innerHTML = UNITS.map((u) => `
-    <button class="unit-chip" data-u="${u.id}" aria-current="${u.id === state.unit}">
-      <small>Unit ${u.id}</small><b>${u.es}</b>
-      <span class="score">${score(u.id)} / ${u.ex.length} correct</span>
+    <button class="unit-chip" data-u="${u.id}" aria-current="${u.id === state.unit}" style="--uc:${UNIT_COLORS[u.id % UNIT_COLORS.length]}">
+      <small>Unidad ${u.id}</small><b>${u.es}</b>
+      <span class="score">${chipScore(u)}</span>
     </button>`).join("");
 }
 
@@ -332,16 +349,24 @@ function renderGrammar(u) {
 }
 function renderVocab(u) {
   const canSay = "speechSynthesis" in window;
-  const tools = `<div class="vocab-tools"><p>Tap a Spanish word to look it up.</p>
-    <label><input type="checkbox" id="hideEn" ${state.hideEn ? "checked" : ""}> Hide English (test yourself)</label></div>`;
-  const groups = u.vocab.map((g) => `<section class="card"><h3>${g.g}</h3><div class="grid">${g.items.map((it) => `
-    <div class="vrow"><div class="l">${es(it[0])}${canSay ? `<button class="say" data-say="${it[0].replace(/"/g, "")}" aria-label="Listen to ${it[0]}">Listen</button>` : ""}</div>
-    <span class="en">${it[1]}</span></div>`).join("")}</div></section>`).join("");
-  return tools + groups;
+  const st = stars(), nStar = u.vocab.reduce((n, g) => n + g.items.filter((it) => st[it[0]]).length, 0);
+  const tools = `<div class="card vocab-tools">
+    <div class="legend"><span class="wk-m">el · masculine</span><span class="wk-f">la · feminine</span><span class="wk-v">verb</span><span class="hl">★ starred</span></div>
+    <div class="toggles"><label><input type="checkbox" id="hideEn" ${state.hideEn ? "checked" : ""}> Hide English</label>
+    <label><input type="checkbox" id="starOnly" ${state.starOnly ? "checked" : ""}> Starred only (${nStar})</label></div></div>`;
+  const groups = u.vocab.map((g) => {
+    const items = g.items.filter((it) => !state.starOnly || st[it[0]]);
+    if (!items.length) return "";
+    return `<section class="card"><h3>${g.g}</h3><div class="grid">${items.map((it) => `
+    <div class="vrow ${st[it[0]] ? "starred" : ""}"><div class="l">${starBtn(it[0])}<span class="${wordKind(it[0])}">${es(it[0])}</span>${canSay ? `<button class="say" data-say="${it[0].replace(/"/g, "")}" aria-label="Listen to ${it[0]}">🔊</button>` : ""}</div>
+    <span class="en">${it[1]}</span></div>`).join("")}</div></section>`;
+  }).join("");
+  return tools + (groups || `<section class="card"><p>No starred words in this unit yet. Tap ☆ next to a word to star it.</p></section>`);
 }
 function renderPhrases(u) {
+  const st = stars();
   return `<section class="card"><h3>Useful sentences</h3><div>${u.phrases.map((p) => `
-    <div class="vrow"><div class="l">${es(p[0])}</div><span class="en">${p[1]}</span></div>`).join("")}</div></section>`;
+    <div class="vrow ${st[p[0]] ? "starred" : ""}"><div class="l">${starBtn(p[0])}${es(p[0])}</div><span class="en">${p[1]}</span></div>`).join("")}</div></section>`;
 }
 function renderPractice(u) {
   const p = unitProg(u.id);
@@ -355,7 +380,7 @@ function renderPractice(u) {
     const q2 = rich(q.q.replace("___", "\u0001")).replace("\u0001", `<span class="fillrow"><input type="text" id="f${i}" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Your answer"><button class="btn ghost chk">Check</button></span>`);
     return `<section class="card q" data-i="${i}">${head}<div class="qt">${q2}</div><div class="fb" aria-live="polite"></div></section>`;
   }).join("");
-  return `<div class="card summary"><div><h3>Practice</h3><p id="scoreLine"></p></div><button class="btn ghost" id="resetU">Start again</button></div>${qs}`;
+  return renderPracticeSets(u) + `<div class="card summary"><div><h3>Quick questions</h3><p id="scoreLine"></p></div><button class="btn ghost" id="resetU">Start again</button></div>${qs}`;
 }
 function applyAnswered(u) {
   const p = unitProg(u.id);
@@ -381,11 +406,12 @@ function render() {
   const u = UNITS[state.unit];
   renderNav();
   if ((state.tab === "listen" || state.tab === "speak") && !SKILLS[u.id]) state.tab = "grammar";
-  const body = ({ grammar: renderGrammar, vocabulary: renderVocab, phrases: renderPhrases, listen: renderListen, speak: renderSpeak, practice: renderPractice })[state.tab](u);
+  const body = ({ grammar: renderGrammar, vocabulary: renderVocab, phrases: renderPhrases, listen: renderListen, speak: renderSpeak, practice: renderPractice, exam: renderExam })[state.tab](u);
+  document.documentElement.style.setProperty("--uc", UNIT_COLORS[u.id % UNIT_COLORS.length]);
   $("#main").innerHTML = `
-    <div class="unit-head"><h2>Unit ${u.id}: <span class="es">${wrapWords(u.es)}</span></h2><p class="en">${u.en}</p>
+    <div class="unit-head"><span class="badge">Unidad ${u.id}</span><h2><span class="es">${wrapWords(u.es)}</span></h2><p class="en">${u.en}</p>
       <ul class="goals">${u.goals.map((g) => `<li>${g}</li>`).join("")}</ul></div>
-    <div class="tabs" role="tablist">${tabsFor(u).map((t) => `<button class="tab" role="tab" data-t="${t[0]}" aria-selected="${t[0] === state.tab}">${t[1]}</button>`).join("")}</div>
+    <div class="tabs" role="tablist">${tabsFor(u).map((t) => `<button class="tab" role="tab" data-t="${t[0]}" aria-selected="${t[0] === state.tab}"><span aria-hidden="true">${TAB_ICON[t[0]] || ""}</span> ${t[1]}</button>`).join("")}</div>
     <div class="panel ${state.hideEn ? "hide-en" : ""}" id="panel">${body}</div>`;
   if (state.tab === "practice") applyAnswered(u);
   if (state.tab === "listen") applyListen(u);
@@ -396,7 +422,7 @@ function go(unit, tab) {
   if (location.hash !== h) location.hash = h; else render();
 }
 function readHash() {
-  const m = /^#unit-(\d)-(grammar|vocabulary|phrases|listen|speak|practice)$/.exec(location.hash);
+  const m = /^#unit-(\d)-(grammar|vocabulary|phrases|listen|speak|practice|exam)$/.exec(location.hash);
   if (m && UNITS[+m[1]]) { state.unit = +m[1]; state.tab = m[2]; }
   render();
 }
@@ -406,6 +432,9 @@ document.addEventListener("click", (e) => {
   const t = e.target;
   const chipU = t.closest(".unit-chip"); if (chipU) return go(+chipU.dataset.u, state.tab);
   const tab = t.closest(".tab"); if (tab) return go(state.unit, tab.dataset.t);
+  if (quizClick(e)) return;
+  const star = t.closest(".star");
+  if (star) { const w = star.dataset.star, st = stars(); if (st[w]) delete st[w]; else st[w] = 1; save(); return render(); }
   const u = UNITS[state.unit];
   const opt = t.closest(".opt");
   if (opt) { const i = +opt.closest(".q").dataset.i, k = +opt.dataset.k; return answer(u, i, { r: k === u.ex[i].a ? "ok" : "no", c: k }); }
@@ -417,7 +446,7 @@ document.addEventListener("click", (e) => {
   const w = t.closest(".w");
   if (w) { const sel = getSelection(); if (sel && sel.isCollapsed) { const r = document.createRange(); r.selectNodeContents(w); sel.removeAllRanges(); sel.addRange(r); } }
 });
-document.addEventListener("change", (e) => { if (e.target.id === "hideEn") { state.hideEn = e.target.checked; $("#panel").classList.toggle("hide-en", state.hideEn); } });
+document.addEventListener("change", (e) => { if (e.target.id === "starOnly") { state.starOnly = e.target.checked; return render(); } if (e.target.id === "hideEn") { state.hideEn = e.target.checked; $("#panel").classList.toggle("hide-en", state.hideEn); } });
 document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.matches(".fillrow input")) { e.preventDefault(); checkFill(UNITS[state.unit], e.target.closest(".q")); } });
 
 function checkFill(u, card) {

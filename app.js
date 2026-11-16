@@ -366,13 +366,15 @@ function answer(u, i, rec) {
 function render() {
   const u = UNITS[state.unit];
   renderNav();
-  const body = { grammar: renderGrammar, vocabulary: renderVocab, phrases: renderPhrases, practice: renderPractice }[state.tab](u);
+  if ((state.tab === "listen" || state.tab === "speak") && !SKILLS[u.id]) state.tab = "grammar";
+  const body = ({ grammar: renderGrammar, vocabulary: renderVocab, phrases: renderPhrases, listen: renderListen, speak: renderSpeak, practice: renderPractice })[state.tab](u);
   $("#main").innerHTML = `
     <div class="unit-head"><h2>Unit ${u.id}: <span class="es">${wrapWords(u.es)}</span></h2><p class="en">${u.en}</p>
       <ul class="goals">${u.goals.map((g) => `<li>${g}</li>`).join("")}</ul></div>
-    <div class="tabs" role="tablist">${TABS.map((t) => `<button class="tab" role="tab" data-t="${t[0]}" aria-selected="${t[0] === state.tab}">${t[1]}</button>`).join("")}</div>
+    <div class="tabs" role="tablist">${tabsFor(u).map((t) => `<button class="tab" role="tab" data-t="${t[0]}" aria-selected="${t[0] === state.tab}">${t[1]}</button>`).join("")}</div>
     <div class="panel ${state.hideEn ? "hide-en" : ""}" id="panel">${body}</div>`;
   if (state.tab === "practice") applyAnswered(u);
+  if (state.tab === "listen") applyListen(u);
 }
 function go(unit, tab) {
   state.unit = unit; state.tab = tab;
@@ -380,7 +382,7 @@ function go(unit, tab) {
   if (location.hash !== h) location.hash = h; else render();
 }
 function readHash() {
-  const m = /^#unit-(\d)-(grammar|vocabulary|phrases|practice)$/.exec(location.hash);
+  const m = /^#unit-(\d)-(grammar|vocabulary|phrases|listen|speak|practice)$/.exec(location.hash);
   if (m && UNITS[+m[1]]) { state.unit = +m[1]; state.tab = m[2]; }
   render();
 }

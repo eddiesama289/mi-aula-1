@@ -1,6 +1,6 @@
 # Mi Aula 1
 
-A beginner Spanish study site that follows the topics of Aula Internacional Plus 1, units 0 to 5.
+A beginner Spanish study site that follows the topics of Aula Internacional Plus 1, units 0 to 9.
 Each unit has grammar notes, vocabulary, phrases and practice questions. Click or select any Spanish
 word to look it up on WordReference.
 

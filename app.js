@@ -288,6 +288,7 @@ const UNITS = [
   ]
 }
 ];
+UNITS.push(...MORE_UNITS);
 const WR = "https://www.wordreference.com/es/en/translation.asp?spen=";
 const TABS = [["grammar", "Grammar"], ["vocabulary", "Vocabulary"], ["phrases", "Phrases"], ["practice", "Practice"]];
 const $ = (s, r = document) => r.querySelector(s);

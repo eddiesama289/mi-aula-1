@@ -289,6 +289,19 @@ const UNITS = [
 }
 ];
 UNITS.push(...MORE_UNITS);
+/* Merge extra book-aligned material (book-updates.js) and Léxico vocabulary (lexico.js) */
+Object.entries(UPDATES).forEach(([id, x]) => {
+  const u = UNITS[+id]; if (!u) return;
+  (x.goals || []).forEach((g) => u.goals.push(g));
+  u.grammar.push(...(x.grammar || [])); u.vocab.push(...(x.vocab || []));
+  u.phrases.push(...(x.phrases || [])); u.ex.push(...(x.ex || []));
+});
+Object.entries(LEXICO_GRAMMAR).forEach(([id, g]) => UNITS[+id].grammar.unshift(...g));
+Object.entries(LEXICO).forEach(([id, groups]) => {
+  const u = UNITS[+id]; if (!u) return;
+  const seen = new Set(u.vocab.flatMap((g) => g.items.map((i) => i[0].toLowerCase())));
+  groups.forEach((g) => { const items = g.items.filter((i) => !seen.has(i[0].toLowerCase())); if (items.length) u.vocab.unshift({ g: g.g, items }); });
+});
 const WR = "https://www.wordreference.com/es/en/translation.asp?spen=";
 const TABS = [["grammar", "Grammar"], ["vocabulary", "Vocabulary"], ["phrases", "Phrases"], ["practice", "Practice"]];
 const $ = (s, r = document) => r.querySelector(s);

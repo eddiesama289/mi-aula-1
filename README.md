@@ -7,3 +7,7 @@ word to look it up on WordReference.
 It is a single static page (`index.html`) with no build step.
 
 The exercises and notes are original practice material and are not copied from the textbook.
+
+## Deploying
+
+This repo is connected to Vercel. Every push to `main` deploys the site to production.

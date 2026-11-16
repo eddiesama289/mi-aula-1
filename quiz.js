@@ -60,8 +60,41 @@ function gradeOf(pct) { return GRADES.find((g) => pct >= g[0]); }
 
 /* ---------- rendering ---------- */
 function accentBar() {
-  return `<div class="x-acc" aria-label="Type special letters">${ACCENTS.map((c) => `<button type="button" class="x-key" data-c="${c}">${c}</button>`).join("")}<span class="muted">Click a box, then a letter</span></div>`;
+  return `<div class="x-tipkb"><b>No Spanish keyboard?</b> Type a letter, then a symbol:
+    <span class="kbd">a'</span>→<span class="es">á</span> <span class="kbd">e'</span>→<span class="es">é</span> <span class="kbd">i'</span>→<span class="es">í</span>
+    <span class="kbd">o'</span>→<span class="es">ó</span> <span class="kbd">u'</span>→<span class="es">ú</span> <span class="kbd">n~</span>→<span class="es">ñ</span>
+    <span class="kbd">u"</span>→<span class="es">ü</span> <span class="kbd">?/</span>→<span class="es">¿</span> <span class="kbd">!/</span>→<span class="es">¡</span>
+    <span class="muted">Or tap the letter buttons that pop up at the bottom when you click a box.</span></div>`;
 }
+
+/* Typing shortcuts for English keyboards: a' → á, n~ → ñ, u" → ü, ?/ → ¿, !/ → ¡ (curly quotes from phones work too).
+   Works in every text box on the site. */
+const ACC_MAP = { a: "á", e: "é", i: "í", o: "ó", u: "ú", A: "Á", E: "É", I: "Í", O: "Ó", U: "Ú" };
+const ACC_RE = /([aeiouAEIOU])['’´`]|([nN])~|([uU])["”]|([?!])\//g;
+function accFix(s) {
+  return s.replace(ACC_RE, (m, v, n, u, p) => v ? ACC_MAP[v] : n ? (n === "n" ? "ñ" : "Ñ") : u ? (u === "u" ? "ü" : "Ü") : p === "?" ? "¿" : "¡");
+}
+function isTextBox(el) { return el && el.tagName === "INPUT" && (!el.type || el.type === "text" || el.type === "search") && !el.disabled && !el.readOnly; }
+document.addEventListener("input", (e) => {
+  const el = e.target; if (!isTextBox(el) || (e.inputType && e.inputType.startsWith("delete"))) return;
+  const pos = el.selectionStart ?? el.value.length;
+  const before = accFix(el.value.slice(0, pos)), after = accFix(el.value.slice(pos));
+  if (before + after === el.value) return;
+  el.value = before + after;
+  try { el.setSelectionRange(before.length, before.length); } catch (err) {}
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+}, true);
+
+/* Floating letter buttons: appear at the bottom of the screen while any text box is focused */
+const accBar = document.createElement("div");
+accBar.id = "accbar"; accBar.setAttribute("aria-label", "Spanish letters");
+accBar.innerHTML = ACCENTS.map((c) => `<button type="button" class="x-key" data-c="${c}" tabindex="-1">${c}</button>`).join("");
+document.addEventListener("DOMContentLoaded", () => document.body.appendChild(accBar));
+accBar.addEventListener("pointerdown", (e) => e.preventDefault()); /* keep focus in the text box */
+accBar.addEventListener("mousedown", (e) => e.preventDefault());
+let accHide = 0;
+document.addEventListener("focusin", (e) => { if (isTextBox(e.target)) { clearTimeout(accHide); accBar.classList.add("on"); } });
+document.addEventListener("focusout", () => { accHide = setTimeout(() => { if (!isTextBox(document.activeElement)) accBar.classList.remove("on"); }, 120); });
 function renderSet(set, si, ans, opts) {
   const done = !!ans, res = done ? gradeSet(set, ans) : null, key = opts.key + "-" + si, pts = set.pts || 1;
   const ptsLabel = opts.exam ? `<span class="muted">${maxOf(set)} points${pts > 1 ? ` (${pts} each)` : ""}</span>` : "";
@@ -182,15 +215,16 @@ function renderExam(u) {
 }
 
 /* ---------- interaction ---------- */
-let lastInput = null;
-document.addEventListener("focusin", (e) => { if (e.target.matches(".x-in")) lastInput = e.target; });
-
 function quizClick(e) {
   const t = e.target, u = UNITS[state.unit];
   const key = t.closest(".x-key");
   if (key) {
-    const inp = lastInput && document.contains(lastInput) && !lastInput.disabled ? lastInput : null;
-    if (inp) { const s = inp.selectionStart ?? inp.value.length, en = inp.selectionEnd ?? s; inp.value = inp.value.slice(0, s) + key.dataset.c + inp.value.slice(en); inp.focus(); inp.setSelectionRange(s + 1, s + 1); }
+    const inp = isTextBox(document.activeElement) ? document.activeElement : null;
+    if (inp) {
+      const s = inp.selectionStart ?? inp.value.length, en = inp.selectionEnd ?? s;
+      inp.value = inp.value.slice(0, s) + key.dataset.c + inp.value.slice(en); inp.setSelectionRange(s + 1, s + 1);
+      inp.dispatchEvent(new Event("input", { bubbles: true }));
+    }
     return true;
   }
   const ml = t.closest(".x-ml");

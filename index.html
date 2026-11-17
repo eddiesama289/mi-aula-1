@@ -182,6 +182,16 @@ th { color: var(--muted); font-weight: 800; font-size: 0.76rem; text-transform: 
 .x-fix { color: var(--ok); font-weight: 800; }
 .x-fix::before { content: "✓ "; }
 .x-note { color: var(--muted); font-size: 0.85rem; font-weight: 700; }
+.x-lessons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.x-lnav { display: flex; flex-direction: column; gap: 2px; text-align: left; font: inherit; color: var(--fg); background: var(--surface); border: 2px solid var(--ink); border-radius: var(--r); box-shadow: 3px 3px 0 var(--shadow); padding: 10px 12px; cursor: pointer; transition: transform .12s, box-shadow .12s; }
+.x-lnav:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--shadow); }
+.x-lnav b { font-family: var(--font-display); color: var(--uc); }
+.x-lnav span { font-size: 0.9rem; line-height: 1.25; }
+.x-lnav small { color: var(--muted); font-size: 0.78rem; }
+.x-lesson { background: var(--uc); color: #FFF9EC; border-color: var(--ink); scroll-margin-top: 70px; }
+.x-lesson h2 { margin: 2px 0 0; color: inherit; }
+.x-lesson .muted { color: inherit; opacity: .9; margin: 6px 0 0; }
+.x-kicker { text-transform: uppercase; letter-spacing: .08em; font-size: 0.75rem; font-weight: 800; opacity: .9; }
 .x-tipkb { background: var(--surface-2); border: 2px dashed var(--ink); border-radius: var(--r); padding: 10px 14px; font-size: 0.92rem; line-height: 2; }
 .x-tipkb .muted { display: block; line-height: 1.5; font-size: 0.85rem; }
 .kbd { font-family: ui-monospace, Consolas, monospace; font-weight: 700; background: var(--surface); border: 1.5px solid var(--ink); border-bottom-width: 3px; border-radius: 6px; padding: 0 6px; margin-left: 4px; }
@@ -287,6 +297,7 @@ footer { color: var(--muted); font-size: 0.85rem; border-top: 2px dashed var(--l
   .x-total { font-size: 2.8rem; }
   .opts { grid-template-columns: 1fr; }
   .summary .btn { width: 100%; text-align: center; }
+  .x-lessons { grid-template-columns: 1fr 1fr; }
 }
 </style>
 </head>
@@ -315,6 +326,7 @@ footer { color: var(--muted); font-size: 0.85rem; border-top: 2px dashed var(--l
 <script src="lexico.js"></script>
 <script src="quiz.js"></script>
 <script src="practice.js"></script>
+<script src="lessons.js"></script>
 <script src="exams.js"></script>
 <script src="app.js"></script>
 </body>

@@ -15,3 +15,5 @@ The exercises and notes are original practice material and are not copied from t
 ## Deploying
 
 This repo is connected to Vercel. Every push to `main` deploys the site to production.
+
+From Unidad 6 on, the Practice tab is split into **Lesson 1–4** to match the daily classes (three new-material lessons plus a revision lesson); the lesson tags and extra exercises live in `lessons.js`.

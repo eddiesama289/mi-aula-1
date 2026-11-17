@@ -176,17 +176,23 @@ function emptyCount(set, ans) {
 }
 
 /* ---------- practice tab ---------- */
-function practiceStore(u) { return progress["p" + u] || (progress["p" + u] = {}); }
+function lessonInfo(u) { return typeof LESSONS !== "undefined" ? LESSONS[u] : null; }
+/* Units split into lessons keep their answers under a new key, so old answers saved by set number don't land on the wrong exercise. */
+function practiceKey(u) { return (lessonInfo(u) ? "pl" : "p") + u; }
+function practiceStore(u) { const k = practiceKey(u); return progress[k] || (progress[k] = {}); }
 function renderPracticeSets(u) {
   const sets = (typeof PRACTICE !== "undefined" && PRACTICE[u.id]) || [];
   if (!sets.length) return "";
-  const store = practiceStore(u.id);
-  let got = 0, max = 0, doneN = 0;
-  sets.forEach((s, si) => { if (store[si]) { const r = gradeSet(s, store[si]); got += r.got; max += r.max; doneN++; } });
-  return `<div class="card summary"><div><h3>Exercises</h3><p>${doneN ? `You have checked ${doneN} of ${sets.length} exercises: ${got} of ${max} points.` : `${sets.length} exercises. Do one, then press <b>Check my answers</b> to get your grade.`}</p></div>
-    ${doneN ? `<button class="btn ghost" id="resetP">Clear all</button>` : ""}</div>
-    ${accentBar()}
-    ${sets.map((s, si) => renderSet(s, si, store[si], { key: "p" + u.id })).join("")}`;
+  const store = practiceStore(u.id), key = practiceKey(u.id), L = lessonInfo(u.id);
+  const score = (list) => list.reduce((a, { s, si }) => { if (store[si]) { const r = gradeSet(s, store[si]); a.got += r.got; a.max += r.max; a.n++; } return a; }, { got: 0, max: 0, n: 0 });
+  const all = sets.map((s, si) => ({ s, si })), tot = score(all);
+  const head = `<div class="card summary"><div><h3>Exercises</h3><p>${tot.n ? `You have checked ${tot.n} of ${sets.length} exercises: ${tot.got} of ${tot.max} points.` : `${sets.length} exercises${L ? ", in 4 lessons that follow your classes" : ""}. Do one, then press <b>Check my answers</b> to get your grade.`}</p></div>
+    ${tot.n ? `<button class="btn ghost" id="resetP">Clear all</button>` : ""}</div>`;
+  if (!L) return head + accentBar() + sets.map((s, si) => renderSet(s, si, store[si], { key })).join("");
+  const groups = [1, 2, 3, 4].map((l) => ({ l, list: all.filter((x) => (x.s.l || 4) === l) }));
+  const nav = `<nav class="x-lessons">${groups.map((g) => { const sc = score(g.list); return `<button type="button" class="x-lnav" data-jump="lesson-${u.id}-${g.l}"><b>Lesson ${g.l}</b><span>${escH(L.titles[g.l - 1])}</span><small>${sc.n ? `${sc.n}/${g.list.length} done · ${sc.got}/${sc.max}` : `${g.list.length} exercises`}</small></button>`; }).join("")}</nav>`;
+  return head + nav + accentBar() + groups.map((g) => `<section class="card x-lesson" id="lesson-${u.id}-${g.l}"><span class="x-kicker">Lesson ${g.l} of 4 · Class ${L.first + g.l - 1}${g.l === 4 ? " · revision" : ""}</span><h2>${escH(L.titles[g.l - 1])}</h2>${g.l === 4 ? `<p class="muted">Mixed exercises from the whole unidad. When you finish them, try the <b>Exam</b> tab.</p>` : ""}</section>` +
+    g.list.map(({ s, si }) => renderSet(s, si, store[si], { key })).join("")).join("");
 }
 
 /* ---------- exam tab ---------- */
@@ -217,6 +223,8 @@ function renderExam(u) {
 /* ---------- interaction ---------- */
 function quizClick(e) {
   const t = e.target, u = UNITS[state.unit];
+  const jump = t.closest("[data-jump]");
+  if (jump) { const el = document.getElementById(jump.dataset.jump); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); return true; }
   const key = t.closest(".x-key");
   if (key) {
     const inp = isTextBox(document.activeElement) ? document.activeElement : null;
@@ -259,7 +267,7 @@ function quizClick(e) {
   }
   const redo = t.closest(".x-redo");
   if (redo) { delete practiceStore(u.id)[+redo.dataset.s]; save(); render(); const again = document.querySelector(`.x-set[data-s="${redo.dataset.s}"]`); if (again) again.scrollIntoView({ block: "start" }); return true; }
-  if (t.closest("#resetP")) { delete progress["p" + u.id]; save(); render(); return true; }
+  if (t.closest("#resetP")) { delete progress[practiceKey(u.id)]; save(); render(); return true; }
   if (t.closest("#submitExam")) {
     const sets = EXAMS[u.id], ans = sets.map((s, si) => collectSet(document.querySelector(`.x-set[data-s="${si}"]`), s));
     const empty = sets.reduce((n, s, si) => n + emptyCount(s, ans[si]), 0);

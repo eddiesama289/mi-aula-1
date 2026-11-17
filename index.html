@@ -77,7 +77,13 @@ button { -webkit-tap-highlight-color: transparent; }
 .hint b { color: var(--fg); }
 
 /* Unit chips */
-#units { display: flex; gap: 10px; overflow-x: auto; padding: 4px 4px 10px; scrollbar-width: thin; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
+#units { display: flex; gap: 10px; overflow-x: auto; padding: 4px 4px 12px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
+/* Scroll bars in the site's style: a cream track and a thumb in the current unidad's colour, both with the ink outline */
+#units::-webkit-scrollbar, .tbl-wrap::-webkit-scrollbar { height: 12px; }
+#units::-webkit-scrollbar-track, .tbl-wrap::-webkit-scrollbar-track { background: var(--surface-2); border: 2px solid var(--ink); border-radius: 999px; }
+#units::-webkit-scrollbar-thumb, .tbl-wrap::-webkit-scrollbar-thumb { background: var(--uc); border: 2px solid var(--ink); border-radius: 999px; }
+#units::-webkit-scrollbar-thumb:hover, .tbl-wrap::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+@supports not selector(::-webkit-scrollbar) { #units, .tbl-wrap { scrollbar-width: thin; scrollbar-color: var(--uc) var(--surface-2); } }
 .unit-chip { flex: 0 0 auto; scroll-snap-align: start; text-align: left; font: inherit; border: 2px solid var(--ink); background: var(--surface); color: var(--fg); border-radius: 12px; padding: 8px 12px 8px 14px; cursor: pointer; min-width: 140px; position: relative; overflow: hidden; box-shadow: 3px 3px 0 var(--shadow); transition: transform .12s, box-shadow .12s; }
 .unit-chip::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 6px; background: var(--uc); }
 .unit-chip:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--shadow); }
@@ -264,6 +270,9 @@ th { color: var(--muted); font-weight: 800; font-size: 0.76rem; text-transform: 
 .x-total small { font-size: 1.4rem; color: var(--muted); text-shadow: none; }
 
 #chip { position: fixed; z-index: 20; display: none; }
+#newver { position: fixed; z-index: 30; left: 50%; bottom: 16px; transform: translateX(-50%); display: none; align-items: center; gap: 10px; max-width: calc(100% - 32px);
+  background: var(--surface); color: var(--fg); border: 2px solid var(--ink); border-radius: 12px; padding: 8px 10px 8px 14px; box-shadow: 3px 3px 0 var(--shadow); font-weight: 700; }
+#newver.on { display: flex; }
 #chip.on { display: inline-block; }
 footer { color: var(--muted); font-size: 0.85rem; border-top: 2px dashed var(--line); padding-top: 12px; }
 
@@ -336,27 +345,28 @@ footer { color: var(--muted); font-size: 0.85rem; border-top: 2px dashed var(--l
   <footer>The exercises and notes on this site are original practice material that follows the topics of each unit. They are not copied from the book, so keep your textbook open next to this page.</footer>
 </div>
 <a id="chip" class="btn" href="#" target="_blank" rel="noopener">Look up on WordReference</a>
-<script src="skills.js"></script>
-<script src="units-6-9.js"></script>
-<script src="book-updates.js"></script>
-<script src="lexico.js"></script>
-<script src="quiz.js"></script>
-<script src="practice.js"></script>
-<script src="lessons.js"></script>
-<script src="clases.js"></script>
-<script src="exams.js"></script>
-<script src="final-exam.js"></script>
-<script src="aula2.js"></script>
-<script src="aula2-u1.js"></script>
-<script src="aula2-u2.js"></script>
-<script src="aula2-u3.js"></script>
-<script src="aula2-u4.js"></script>
-<script src="aula2-u5.js"></script>
-<script src="aula2-u6.js"></script>
-<script src="aula2-u7.js"></script>
-<script src="aula2-u8.js"></script>
-<script src="aula2-u9.js"></script>
-<script src="aula2-u10.js"></script>
-<script src="app.js"></script>
+<div id="newver" role="status"><span>A new version of Mi Aula is ready.</span><button class="btn" id="newverBtn" type="button">Reload</button></div>
+<script src="skills.js?v=316fdda5"></script>
+<script src="units-6-9.js?v=2989a08d"></script>
+<script src="book-updates.js?v=9d2ba3c2"></script>
+<script src="lexico.js?v=7a674b4e"></script>
+<script src="quiz.js?v=33473b69"></script>
+<script src="practice.js?v=cd75156e"></script>
+<script src="lessons.js?v=35cec7bd"></script>
+<script src="clases.js?v=a1fccc0f"></script>
+<script src="exams.js?v=61ff90f3"></script>
+<script src="final-exam.js?v=22dd868a"></script>
+<script src="aula2.js?v=7a4f2d8a"></script>
+<script src="aula2-u1.js?v=c5e28121"></script>
+<script src="aula2-u2.js?v=1579a081"></script>
+<script src="aula2-u3.js?v=97304bd9"></script>
+<script src="aula2-u4.js?v=cbb2e529"></script>
+<script src="aula2-u5.js?v=9c248b45"></script>
+<script src="aula2-u6.js?v=5069ca90"></script>
+<script src="aula2-u7.js?v=1af8d5c0"></script>
+<script src="aula2-u8.js?v=0c2cc915"></script>
+<script src="aula2-u9.js?v=4d0daa34"></script>
+<script src="aula2-u10.js?v=b26a087c"></script>
+<script src="app.js?v=88f00871"></script>
 </body>
 </html>

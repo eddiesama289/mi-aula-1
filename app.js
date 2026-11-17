@@ -518,3 +518,25 @@ li.addEventListener("input", () => { lb.href = WR + encodeURIComponent(cleanTerm
 $("#lookupForm").addEventListener("submit", (e) => { e.preventDefault(); if (cleanTerm(li.value)) { try { lb.click(); } catch (err) {} } });
 
 readHash();
+
+/* New-version notice. index.html carries a ?v= stamp per script (tools/stamp-versions.js), so after a deploy the
+   page's HTML changes. When the tab comes back into view (or every 15 minutes) we fetch it fresh and compare the
+   stamps; if they differ, a small bar offers a reload. It never reloads by itself, so typed answers are not lost. */
+(function () {
+  const stamps = (doc) => [...doc.querySelectorAll("script[src]")].map((s) => s.getAttribute("src")).join("|");
+  const mine = stamps(document);
+  if (!/\?v=/.test(mine)) return;
+  let last = 0;
+  async function check() {
+    if (Date.now() - last < 60000) return; last = Date.now();
+    try {
+      const r = await fetch(location.pathname, { cache: "no-store" }); if (!r.ok) return;
+      const theirs = stamps(new DOMParser().parseFromString(await r.text(), "text/html"));
+      if (theirs && theirs !== mine) $("#newver").classList.add("on");
+    } catch (e) {}
+  }
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") check(); });
+  window.addEventListener("pageshow", (e) => { if (e.persisted) check(); });
+  setInterval(check, 15 * 60000);
+  document.addEventListener("click", (e) => { if (e.target.closest("#newverBtn")) location.reload(); });
+})();

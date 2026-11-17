@@ -191,7 +191,7 @@ function renderPracticeSets(u) {
   if (!L) return head + accentBar() + sets.map((s, si) => renderSet(s, si, store[si], { key })).join("");
   const groups = [1, 2, 3, 4].map((l) => ({ l, list: all.filter((x) => (x.s.l || 4) === l) }));
   const nav = `<nav class="x-lessons">${groups.map((g) => { const sc = score(g.list); return `<button type="button" class="x-lnav" data-jump="lesson-${u.id}-${g.l}"><b>Lesson ${g.l}</b><span>${escH(L.titles[g.l - 1])}</span><small>${sc.n ? `${sc.n}/${g.list.length} done · ${sc.got}/${sc.max}` : `${g.list.length} exercises`}</small></button>`; }).join("")}</nav>`;
-  return head + nav + accentBar() + groups.map((g) => `<section class="card x-lesson" id="lesson-${u.id}-${g.l}"><span class="x-kicker">Lesson ${g.l} of 4 · Class ${L.first + g.l - 1}${g.l === 4 ? " · revision" : ""}</span><h2>${escH(L.titles[g.l - 1])}</h2>${g.l === 4 ? `<p class="muted">Mixed exercises from the whole unidad. When you finish them, try the <b>Exam</b> tab.</p>` : ""}</section>` +
+  return head + nav + accentBar() + groups.map((g) => `<section class="card x-lesson" id="lesson-${u.id}-${g.l}"><span class="x-kicker">Lesson ${g.l} of 4 · ${L.book === 2 ? "Aula 2 class" : "Class"} ${L.first + g.l - 1}${g.l === 4 ? " · revision" : ""}</span><h2>${escH(L.titles[g.l - 1])}</h2>${g.l === 4 ? `<p class="muted">Mixed exercises from the whole unidad. When you finish them, try the <b>Exam</b> tab.</p>` : ""}</section>` +
     g.list.map(({ s, si }) => renderSet(s, si, store[si], { key })).join("")).join("");
 }
 
@@ -211,9 +211,9 @@ function renderExam(u) {
       <p class="muted">Corrections are shown in red under each part. Review the grammar and vocabulary tabs, then take the exam again.</p>
       <div><button class="btn" id="retakeExam">Take the exam again</button></div></section>`;
   } else {
-    head = `<section class="card"><h3>Unit ${u.id} exam · ${total} points</h3>
+    head = `<section class="card"><h3>${u.final ? u.en : `Unit ${u.n} exam`} · ${total} points</h3>
       <p>Answer every part, then press <b>Submit exam</b> at the bottom. You get your grade out of ${total} and the corrections. ${st.best !== undefined ? `Your best score so far: <b>${st.best} / ${total}</b>.` : ""}</p>
-      <p class="muted">Grades: 45 or more Sobresaliente · 35 Notable · 25 Aprobado · under 25 Suspenso. Missing accents still count, but they are pointed out.</p></section>${accentBar()}`;
+      <p class="muted">Grades: ${Math.ceil(total * .9)} or more Sobresaliente · ${Math.ceil(total * .7)} Notable · ${Math.ceil(total * .5)} Aprobado · under ${Math.ceil(total * .5)} Suspenso. Missing accents still count, but they are pointed out.</p></section>${accentBar()}`;
   }
   const body = sets.map((s, si) => renderSet(s, si, ans ? ans[si] || s.items.map(() => -1) : null, { key: "x" + u.id, exam: true })).join("");
   const foot = ans ? "" : `<div class="card summary"><p>Finished? Check that you answered everything.</p><button class="btn" id="submitExam">Submit exam</button></div>`;
@@ -222,7 +222,7 @@ function renderExam(u) {
 
 /* ---------- interaction ---------- */
 function quizClick(e) {
-  const t = e.target, u = UNITS[state.unit];
+  const t = e.target, u = byId(state.unit);
   const jump = t.closest("[data-jump]");
   if (jump) { const el = document.getElementById(jump.dataset.jump); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); return true; }
   const key = t.closest(".x-key");

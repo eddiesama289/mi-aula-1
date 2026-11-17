@@ -302,6 +302,15 @@ Object.entries(LEXICO).forEach(([id, groups]) => {
   const seen = new Set(u.vocab.flatMap((g) => g.items.map((i) => i[0].toLowerCase())));
   groups.forEach((g) => { const items = g.items.filter((i) => !seen.has(i[0].toLowerCase())); if (items.length) u.vocab.unshift({ g: g.g, items }); });
 });
+/* Two books in one site. Aula Plus 1 keeps ids 0–9 (id = unit number); Aula Plus 2 units use ids 101–110 (aula2-*.js)
+   so their saved progress, practice and exams never mix with book 1. u.n is the number shown on screen. */
+UNITS.forEach((u) => { u.book = 1; u.n = u.id; });
+if (typeof A2_UNITS !== "undefined") UNITS.push(...A2_UNITS);
+if (typeof FINAL_UNITS !== "undefined") UNITS.push(...FINAL_UNITS);
+const BOOKS = { 1: { name: "Aula Plus 1", level: "A1", sub: "Spanish A1, following Aula Internacional Plus 1 · units 0 to 9" },
+  2: { name: "Aula Plus 2", level: "A2", sub: "Spanish A2, following Aula Internacional Plus 2 · units 1 to 10" } };
+function byId(id) { return UNITS.find((u) => u.id === id); }
+function examTotal(u) { return ((typeof EXAMS !== "undefined" && EXAMS[u.id]) || []).reduce((n, s) => n + maxOf(s), 0); }
 const WR = "https://www.wordreference.com/es/en/translation.asp?spen=";
 const TABS = [["grammar", "Grammar"], ["vocabulary", "Vocabulary"], ["phrases", "Phrases"], ["practice", "Practice"], ["exam", "Exam"]];
 const TAB_ICON = { grammar: "📘", vocabulary: "🗂️", phrases: "💬", listen: "🎧", speak: "🎙️", practice: "✏️", exam: "🏆" };
@@ -323,7 +332,8 @@ function score(u) { const p = unitProg(u); return Object.values(p).filter((x) =>
 
 function chipScore(u) {
   const x = progress["x" + u.id];
-  if (x && x.best !== undefined) return `🏆 ${x.best} / 50`;
+  if (x && x.best !== undefined) return `🏆 ${x.best} / ${examTotal(u)}`;
+  if (u.final) return `${examTotal(u)}-point exam`;
   return `${score(u.id)} / ${u.ex.length} quick questions`;
 }
 /* Word colours: el/los words blue, la/las words red, verbs green, so gender and word type stick in memory */
@@ -336,12 +346,19 @@ function wordKind(w) {
 }
 function stars() { return progress.star || (progress.star = {}); }
 function starBtn(w) { const on = !!stars()[w]; return `<button class="star ${on ? "on" : ""}" data-star="${w.replace(/"/g, "&quot;")}" aria-pressed="${on}" aria-label="Star ${w.replace(/"/g, "")}">${on ? "★" : "☆"}</button>`; }
+function unitColor(u) { return u.final ? "#9C4A1A" : UNIT_COLORS[u.n % UNIT_COLORS.length]; }
+function unitLabel(u) { return u.final ? "Final exam" : `Unidad ${u.n}`; }
 function renderNav() {
-  $("#units").innerHTML = UNITS.map((u) => `
-    <button class="unit-chip" data-u="${u.id}" aria-current="${u.id === state.unit}" style="--uc:${UNIT_COLORS[u.id % UNIT_COLORS.length]}">
-      <small>Unidad ${u.id}</small><b>${u.es}</b>
+  const cur = byId(state.unit);
+  $("#books").innerHTML = Object.entries(BOOKS).map(([b, B]) => `<button class="book-btn" data-book="${b}" aria-pressed="${+b === cur.book}"><b>${B.name}</b><small>${B.level}</small></button>`).join("");
+  $("#units").innerHTML = UNITS.filter((u) => u.book === cur.book).map((u) => `
+    <button class="unit-chip ${u.final ? "final" : ""}" data-u="${u.id}" aria-current="${u.id === state.unit}" style="--uc:${unitColor(u)}">
+      <small>${unitLabel(u)}</small><b>${u.es}</b>
       <span class="score">${chipScore(u)}</span>
     </button>`).join("");
+  $("#bookNum").textContent = cur.book;
+  $("#bookSub").textContent = BOOKS[cur.book].sub;
+  document.title = "Mi Aula · " + BOOKS[cur.book].name;
 }
 
 function renderGrammar(u) {
@@ -407,39 +424,46 @@ function answer(u, i, rec) {
 }
 
 function render() {
-  const u = UNITS[state.unit];
+  const u = byId(state.unit);
   renderNav();
-  if ((state.tab === "listen" || state.tab === "speak") && !SKILLS[u.id]) state.tab = "grammar";
+  if (!tabsFor(u).some((t) => t[0] === state.tab)) state.tab = tabsFor(u)[0][0];
   const body = ({ grammar: renderGrammar, vocabulary: renderVocab, phrases: renderPhrases, listen: renderListen, speak: renderSpeak, practice: renderPractice, exam: renderExam })[state.tab](u);
-  document.documentElement.style.setProperty("--uc", UNIT_COLORS[u.id % UNIT_COLORS.length]);
+  document.documentElement.style.setProperty("--uc", unitColor(u));
   $("#main").innerHTML = `
-    <div class="unit-head"><span class="badge">Unidad ${u.id}</span><h2><span class="es">${wrapWords(u.es)}</span></h2><p class="en">${u.en}</p>
+    <div class="unit-head"><span class="badge">${u.book === 2 ? "Aula 2 · " : ""}${unitLabel(u)}</span><h2><span class="es">${wrapWords(u.es)}</span></h2><p class="en">${u.en}</p>
       <ul class="goals">${u.goals.map((g) => `<li>${g}</li>`).join("")}</ul></div>
     <div class="tabs" role="tablist">${tabsFor(u).map((t) => `<button class="tab" role="tab" data-t="${t[0]}" aria-selected="${t[0] === state.tab}"><span aria-hidden="true">${TAB_ICON[t[0]] || ""}</span> ${t[1]}</button>`).join("")}</div>
     <div class="panel ${state.hideEn ? "hide-en" : ""}" id="panel">${body}</div>`;
   if (state.tab === "practice") applyAnswered(u);
   if (state.tab === "listen") applyListen(u);
 }
+/* Hashes: #unit-6-grammar (Aula 1) · #aula2-unit-3-grammar (Aula 2) · #aula1-final (Aula 1 final exam) */
+function hashOf(u, tab) { return u.final ? `#aula${u.book}-final` : `#${u.book === 2 ? "aula2-" : ""}unit-${u.n}-${tab}`; }
 function go(unit, tab) {
+  const u = byId(unit);
   state.unit = unit; state.tab = tab;
-  const h = `#unit-${unit}-${tab}`;
+  if (!tabsFor(u).some((t) => t[0] === tab)) state.tab = tabsFor(u)[0][0];
+  const h = hashOf(u, state.tab);
   if (location.hash !== h) location.hash = h; else render();
 }
 function readHash() {
-  const m = /^#unit-(\d)-(grammar|vocabulary|phrases|listen|speak|practice|exam)$/.exec(location.hash);
-  if (m && UNITS[+m[1]]) { state.unit = +m[1]; state.tab = m[2]; }
+  const h = location.hash, m = /^#(aula2-)?unit-(\d+)-(grammar|vocabulary|phrases|listen|speak|practice|exam)$/.exec(h), f = /^#aula(\d)-final$/.exec(h);
+  const u = m ? UNITS.find((x) => x.book === (m[1] ? 2 : 1) && x.n === +m[2] && !x.final) : f ? UNITS.find((x) => x.final && x.book === +f[1]) : null;
+  if (u) { state.unit = u.id; state.tab = m ? m[3] : "exam"; const last = progress.last || (progress.last = {}); if (last[u.book] !== u.id) { last[u.book] = u.id; save(); } }
   render();
 }
 window.addEventListener("hashchange", readHash);
 
 document.addEventListener("click", (e) => {
   const t = e.target;
-  const chipU = t.closest(".unit-chip"); if (chipU) return go(+chipU.dataset.u, state.tab);
+  const chipU = t.closest(".unit-chip"); if (chipU) return go(+chipU.dataset.u, byId(state.unit).final ? "grammar" : state.tab);
+  const book = t.closest(".book-btn");
+  if (book) { const b = +book.dataset.book, last = progress.last && progress.last[b], first = UNITS.find((x) => x.book === b && x.n === 1); return go(last && byId(last) ? last : first.id, byId(state.unit).final ? "grammar" : state.tab); }
   const tab = t.closest(".tab"); if (tab) return go(state.unit, tab.dataset.t);
   if (quizClick(e)) return;
   const star = t.closest(".star");
   if (star) { const w = star.dataset.star, st = stars(); if (st[w]) delete st[w]; else st[w] = 1; save(); return render(); }
-  const u = UNITS[state.unit];
+  const u = byId(state.unit);
   const opt = t.closest(".opt");
   if (opt) { const i = +opt.closest(".q").dataset.i, k = +opt.dataset.k; return answer(u, i, { r: k === u.ex[i].a ? "ok" : "no", c: k }); }
   const chk = t.closest(".chk"); if (chk) return checkFill(u, chk.closest(".q"));
@@ -451,7 +475,7 @@ document.addEventListener("click", (e) => {
   if (w) { const sel = getSelection(); if (sel && sel.isCollapsed) { const r = document.createRange(); r.selectNodeContents(w); sel.removeAllRanges(); sel.addRange(r); } }
 });
 document.addEventListener("change", (e) => { if (e.target.id === "starOnly") { state.starOnly = e.target.checked; return render(); } if (e.target.id === "hideEn") { state.hideEn = e.target.checked; $("#panel").classList.toggle("hide-en", state.hideEn); } });
-document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.matches(".fillrow input")) { e.preventDefault(); checkFill(UNITS[state.unit], e.target.closest(".q")); } });
+document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.matches(".fillrow input")) { e.preventDefault(); checkFill(byId(state.unit), e.target.closest(".q")); } });
 
 function checkFill(u, card) {
   const i = +card.dataset.i, q = u.ex[i], val = norm($("input", card).value);

@@ -81,6 +81,7 @@ const SKILLS = {
 
 const EXTRA_TABS = [["listen", "Listening"], ["speak", "Speaking"]];
 function tabsFor(u) {
+  if (u.final) return [["exam", "Final exam"]];
   if (!SKILLS[u.id]) return TABS;
   const t = TABS.slice();
   t.splice(3, 0, ...EXTRA_TABS); /* before Practice */
@@ -277,7 +278,7 @@ async function startRecordOnly(card, btn, out, idle) {
 
 /* ---------- events ---------- */
 document.addEventListener("click", (e) => {
-  const t = e.target, u = UNITS[state.unit];
+  const t = e.target, u = byId(state.unit);
   const lp = t.closest(".lplay");
   if (lp) { const i = +lp.closest(".lq").dataset.i; if (!speakEs(SKILLS[u.id].listen[i].es, lp.dataset.slow ? 0.55 : 0.9)) lp.textContent = "No speech here"; return; }
   const lo = t.closest(".lopt");
@@ -294,6 +295,6 @@ document.addEventListener("click", (e) => {
   if (sm) { const m = $(".model", sm.closest(".sc")); m.hidden = !m.hidden; sm.textContent = m.hidden ? "Show a model answer" : "Hide the model answer"; }
 });
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && e.target.matches(".lfill input")) { e.preventDefault(); checkListenFill(UNITS[state.unit], e.target.closest(".lq")); }
+  if (e.key === "Enter" && e.target.matches(".lfill input")) { e.preventDefault(); checkListenFill(byId(state.unit), e.target.closest(".lq")); }
 });
 window.addEventListener("hashchange", () => { stopAll(); if ("speechSynthesis" in window) speechSynthesis.cancel(); });

@@ -21,6 +21,54 @@ function seededShuffle(arr, key) {
   if (a.length > 1 && a.every((x, i) => x === arr[i])) a.push(a.shift());
   return a;
 }
+/* ---------- a fresh draw on every attempt ----------
+   Each set shows a random selection from a pool: its own items plus same-type items from other sets
+   (practice: earlier lessons of the unidad, or the whole unidad + exam for the revision lesson;
+   exam: the unidad's practice; final exam: the unit exams). At most half the items come from outside the set,
+   and a fill item is only swapped for one with the same number of blanks, so the points never change.
+   Options, pairs and word tiles are shuffled too, and a reading may be swapped for another reading of the unidad.
+   The draw is kept in memory until the set is checked (a reload or "Try again" gives a new one);
+   checked sets save their draw together with the answers. */
+const DRAWS = {};
+function rndInt(n) { return Math.floor(Math.random() * n); }
+function shuffled(arr) { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rndInt(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+const GENERIC_I = /^(write the missing word|write the correct form|complete|fill in|write the answer)/i;
+function poolable(s) { return !s.bank && !s.text; }
+function itemKeys(type, it) {
+  return type === "match" ? [it[0], it[1]].map((x) => "m " + String(x).toLowerCase()) : [type + " " + JSON.stringify(type === "mc" ? it[0] : it).toLowerCase()];
+}
+/* taken (optional): keys already used by other parts of the same exam, so no question appears twice. */
+function drawSet(set, sources, taken) {
+  const n = set.items.length, seed = String(Math.random()).slice(2, 10);
+  if (set.type === "tf") {
+    const reads = [set, ...sources.filter((s) => s.text && s.items.length >= n)];
+    const src = reads[rndInt(reads.length)];
+    return Object.assign({}, set, { t: src.t, text: src.text, items: shuffled(src.items).slice(0, n), seed });
+  }
+  const keys = (it) => itemKeys(set.type, it);
+  const own = set.items.map((it) => ({ it, src: set })), foreign = [];
+  if (poolable(set)) {
+    const seen = new Set(taken || []); own.forEach((o) => keys(o.it).forEach((k) => seen.add(k)));
+    sources.filter((s) => s !== set && s.type === set.type && poolable(s)).forEach((s) => s.items.forEach((it) => {
+      const ks = keys(it); if (ks.some((k) => seen.has(k))) return;
+      ks.forEach((k) => seen.add(k)); foreign.push({ it, src: s });
+    }));
+  }
+  const blanks = (x) => set.type === "fill" ? parseFill(x.it).blanks.length : 1;
+  const all = own.concat(foreign), used = new Set(), cap = Math.floor(n / 2), picks = []; let nf = 0;
+  shuffled(own).forEach((slot) => {
+    const b = blanks(slot), c = all.filter((x) => !used.has(x) && blanks(x) === b && (x.src === set || nf < cap));
+    const p = c[rndInt(c.length)]; used.add(p); if (p.src !== set) nf++; picks.push(p);
+  });
+  if (taken) picks.forEach(({ it }) => keys(it).forEach((k) => taken.add(k)));
+  const items = picks.map(({ it }) => {
+    if (set.type !== "mc") return it;
+    const ord = shuffled(it[1].map((_, k) => k));
+    return [it[0], ord.map((k) => it[1][k]), ord.indexOf(it[2])];
+  });
+  const hints = set.type === "fill" ? picks.map(({ src }) => src === set || src.i === set.i ? "" : (src.i && !GENERIC_I.test(src.i) ? src.i : src.t)) : null;
+  return Object.assign({}, set, { items, hints, bank: set.bank && shuffled(set.bank), seed });
+}
 function escH(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 function cleanAns(s) { return norm(String(s || "")).replace(/[.!¡¿?,;]+$/g, "").replace(/^[¿¡]+/, "").trim(); }
 function sentToks(s) { return String(s).toLowerCase().replace(/[¿?¡!.,;:"'«»“”]/g, " ").split(/\s+/).filter(Boolean); }
@@ -96,7 +144,7 @@ let accHide = 0;
 document.addEventListener("focusin", (e) => { if (isTextBox(e.target)) { clearTimeout(accHide); accBar.classList.add("on"); } });
 document.addEventListener("focusout", () => { accHide = setTimeout(() => { if (!isTextBox(document.activeElement)) accBar.classList.remove("on"); }, 120); });
 function renderSet(set, si, ans, opts) {
-  const done = !!ans, res = done ? gradeSet(set, ans) : null, key = opts.key + "-" + si, pts = set.pts || 1;
+  const done = !!ans, res = done ? gradeSet(set, ans) : null, key = opts.key + "-" + si + (set.seed || ""), pts = set.pts || 1;
   const ptsLabel = opts.exam ? `<span class="muted">${maxOf(set)} points${pts > 1 ? ` (${pts} each)` : ""}</span>` : "";
   const scoreTag = done && !opts.hideScore ? pill(res.got, res.max) : "";
   let body = "";
@@ -111,7 +159,8 @@ function renderSet(set, si, ans, opts) {
         const fix = m === "no" ? ` <span class="x-fix">${escH(f.blanks[k][0])}</span>` : m === "acc" ? ` <span class="x-note">accent: ${escH(f.blanks[k][0])}</span>` : "";
         return `<span class="x-blank"><input class="x-in ${m ? (m === "no" ? "no" : "ok") : ""}" data-i="${i}" data-b="${k}" value="${escH(v)}" ${done ? "disabled" : ""} autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Blank ${k + 1}">${fix}</span>`;
       });
-      return `<li>${html}</li>`;
+      const hint = set.hints && set.hints[i] ? `<span class="x-hint">${escH(set.hints[i])}</span>` : "";
+      return `<li>${hint}${html}</li>`;
     }).join("")}</ol>`;
   } else if (set.type === "match") {
     const right = seededShuffle(set.items.map((p, i) => i), key);
@@ -180,25 +229,57 @@ function lessonInfo(u) { return typeof LESSONS !== "undefined" ? LESSONS[u] : nu
 /* Units split into lessons keep their answers under a new key, so old answers saved by set number don't land on the wrong exercise. */
 function practiceKey(u) { return (lessonInfo(u) ? "pl" : "p") + u; }
 function practiceStore(u) { const k = practiceKey(u); return progress[k] || (progress[k] = {}); }
+/* Lessons 1–3 draw from their own lesson and earlier ones; the revision lesson (and units without lessons) from the
+   whole unidad plus its exam. */
+function practiceSources(uid, set) {
+  const sets = PRACTICE[uid] || [], l = set.l || 4;
+  const list = lessonInfo(uid) && l < 4 ? sets.filter((s) => (s.l || 4) <= l) : sets.concat((typeof EXAMS !== "undefined" && EXAMS[uid]) || []);
+  return list.filter((s) => s !== set && s.type === set.type);
+}
+/* { set, ans } for practice set si: the checked attempt, or the current fresh draw (ans null). */
+function practiceEntry(uid, si) {
+  const set = PRACTICE[uid][si], saved = practiceStore(uid)[si];
+  if (Array.isArray(saved)) return { set, ans: saved }; /* answers saved before draws existed */
+  if (saved && saved.ans) return { set: saved.set || set, ans: saved.ans };
+  const k = "p" + uid + "-" + si;
+  return { set: DRAWS[k] || (DRAWS[k] = drawSet(set, practiceSources(uid, set))), ans: null };
+}
 function renderPracticeSets(u) {
   const sets = (typeof PRACTICE !== "undefined" && PRACTICE[u.id]) || [];
   if (!sets.length) return "";
-  const store = practiceStore(u.id), key = practiceKey(u.id), L = lessonInfo(u.id);
-  const score = (list) => list.reduce((a, { s, si }) => { if (store[si]) { const r = gradeSet(s, store[si]); a.got += r.got; a.max += r.max; a.n++; } return a; }, { got: 0, max: 0, n: 0 });
+  const key = practiceKey(u.id), L = lessonInfo(u.id), ent = sets.map((s, si) => practiceEntry(u.id, si));
+  const score = (list) => list.reduce((a, { si }) => { const e = ent[si]; if (e.ans) { const r = gradeSet(e.set, e.ans); a.got += r.got; a.max += r.max; a.n++; } return a; }, { got: 0, max: 0, n: 0 });
   const all = sets.map((s, si) => ({ s, si })), tot = score(all);
   const head = `<div class="card summary"><div><h3>Exercises</h3><p>${tot.n ? `You have checked ${tot.n} of ${sets.length} exercises: ${tot.got} of ${tot.max} points.` : `${sets.length} exercises${L ? ", in 4 lessons that follow your classes" : ""}. Do one, then press <b>Check my answers</b> to get your grade.`}</p></div>
     ${tot.n ? `<button class="btn ghost" id="resetP">Clear all</button>` : ""}</div>`;
-  if (!L) return head + accentBar() + sets.map((s, si) => renderSet(s, si, store[si], { key })).join("");
+  if (!L) return head + accentBar() + sets.map((s, si) => renderSet(ent[si].set, si, ent[si].ans, { key })).join("");
   const groups = [1, 2, 3, 4].map((l) => ({ l, list: all.filter((x) => (x.s.l || 4) === l) }));
   const nav = `<nav class="x-lessons">${groups.map((g) => { const sc = score(g.list); return `<button type="button" class="x-lnav" data-jump="lesson-${u.id}-${g.l}"><b>Lesson ${g.l}</b><span>${escH(L.titles[g.l - 1])}</span><small>${sc.n ? `${sc.n}/${g.list.length} done · ${sc.got}/${sc.max}` : `${g.list.length} exercises`}</small></button>`; }).join("")}</nav>`;
   return head + nav + accentBar() + groups.map((g) => `<section class="card x-lesson" id="lesson-${u.id}-${g.l}"><span class="x-kicker">Lesson ${g.l} of 4 · ${L.book === 2 ? "Aula 2 class" : "Class"} ${L.first + g.l - 1}${g.l === 4 ? " · revision" : ""}</span><h2>${escH(L.titles[g.l - 1])}</h2>${g.l === 4 ? `<p class="muted">Mixed exercises from the whole unidad. When you finish them, try the <b>Exam</b> tab.</p>` : ""}</section>` +
-    g.list.map(({ s, si }) => renderSet(s, si, store[si], { key })).join("")).join("");
+    g.list.map(({ si }) => renderSet(ent[si].set, si, ent[si].ans, { key })).join("")).join("");
 }
 
 /* ---------- exam tab ---------- */
 function examStore(u) { return progress["x" + u] || (progress["x" + u] = {}); }
+function examSources(u, set) {
+  const list = u.final ? UNITS.filter((x) => x.book === u.book && !x.final && x.n >= 1).flatMap((x) => EXAMS[x.id] || [])
+    : ((typeof PRACTICE !== "undefined" && PRACTICE[u.id]) || []);
+  return list.filter((s) => s.type === set.type);
+}
+/* The parts of the exam: the submitted attempt, or a fresh draw for a new attempt. */
+function examSets(u) {
+  const base = (typeof EXAMS !== "undefined" && EXAMS[u.id]) || [], st = examStore(u.id);
+  if (!base.length) return base;
+  if (st.ans) return st.sets || base;
+  const k = "x" + u.id;
+  if (!DRAWS[k]) {
+    const taken = new Set(base.flatMap((s) => s.items.flatMap((it) => itemKeys(s.type, it))));
+    DRAWS[k] = base.map((s) => drawSet(s, examSources(u, s), taken));
+  }
+  return DRAWS[k];
+}
 function renderExam(u) {
-  const sets = (typeof EXAMS !== "undefined" && EXAMS[u.id]) || [];
+  const sets = examSets(u);
   if (!sets.length) return `<section class="card"><p>The exam for this unit is coming soon.</p></section>`;
   const st = examStore(u.id), total = sets.reduce((n, s) => n + maxOf(s), 0), ans = st.ans;
   let head;
@@ -260,24 +341,24 @@ function quizClick(e) {
   if (opt && !opt.disabled) { opt.closest(".x-opts").querySelectorAll(".x-opt").forEach((b) => b.classList.toggle("sel", b === opt)); return true; }
   const chk = t.closest(".x-check");
   if (chk) {
-    const si = +chk.dataset.s, set = PRACTICE[u.id][si], el = chk.closest(".x-set");
-    practiceStore(u.id)[si] = collectSet(el, set); save(); render();
+    const si = +chk.dataset.s, set = practiceEntry(u.id, si).set, el = chk.closest(".x-set");
+    practiceStore(u.id)[si] = { set, ans: collectSet(el, set) }; delete DRAWS["p" + u.id + "-" + si]; save(); render();
     const again = document.querySelector(`.x-set[data-s="${si}"]`); if (again) again.scrollIntoView({ block: "start" });
     return true;
   }
   const redo = t.closest(".x-redo");
-  if (redo) { delete practiceStore(u.id)[+redo.dataset.s]; save(); render(); const again = document.querySelector(`.x-set[data-s="${redo.dataset.s}"]`); if (again) again.scrollIntoView({ block: "start" }); return true; }
-  if (t.closest("#resetP")) { delete progress[practiceKey(u.id)]; save(); render(); return true; }
+  if (redo) { delete practiceStore(u.id)[+redo.dataset.s]; delete DRAWS["p" + u.id + "-" + redo.dataset.s]; save(); render(); const again = document.querySelector(`.x-set[data-s="${redo.dataset.s}"]`); if (again) again.scrollIntoView({ block: "start" }); return true; }
+  if (t.closest("#resetP")) { delete progress[practiceKey(u.id)]; Object.keys(DRAWS).forEach((k) => { if (k.startsWith("p" + u.id + "-")) delete DRAWS[k]; }); save(); render(); return true; }
   if (t.closest("#submitExam")) {
-    const sets = EXAMS[u.id], ans = sets.map((s, si) => collectSet(document.querySelector(`.x-set[data-s="${si}"]`), s));
+    const sets = examSets(u), ans = sets.map((s, si) => collectSet(document.querySelector(`.x-set[data-s="${si}"]`), s));
     const empty = sets.reduce((n, s, si) => n + emptyCount(s, ans[si]), 0);
     if (empty && !confirm(`You have ${empty} unanswered ${empty === 1 ? "question" : "questions"}. Submit anyway?`)) return true;
     const st = examStore(u.id), got = sets.reduce((n, s, si) => n + gradeSet(s, ans[si]).got, 0);
-    st.ans = ans; st.last = got; st.best = Math.max(st.best || 0, got); st.at = Date.now(); save(); render();
+    st.ans = ans; st.sets = sets; delete DRAWS["x" + u.id]; st.last = got; st.best = Math.max(st.best || 0, got); st.at = Date.now(); save(); render();
     window.scrollTo({ top: $("#main").offsetTop - 10 });
     return true;
   }
-  if (t.closest("#retakeExam")) { delete examStore(u.id).ans; save(); render(); window.scrollTo({ top: $("#main").offsetTop - 10 }); return true; }
+  if (t.closest("#retakeExam")) { const st = examStore(u.id); delete st.ans; delete st.sets; delete DRAWS["x" + u.id]; save(); render(); window.scrollTo({ top: $("#main").offsetTop - 10 }); return true; }
   return false;
 }
 function unpair(box, i) {

@@ -390,12 +390,14 @@ function renderPhrases(u) {
   return byClase(u.id, "phrases", pieces, card) ?? card(pieces.join(""));
 }
 function renderPractice(u) {
-  const p = unitProg(u.id);
-  const qs = u.ex.map((q, i) => {
-    const head = `<div class="qn">Question ${i + 1} of ${u.ex.length}</div>`;
+  /* New question order and option order on every page load and every "Start again" (see DRAWS in quiz.js) */
+  const ord = DRAWS["q" + u.id] || (DRAWS["q" + u.id] = { q: shuffled(u.ex.map((_, i) => i)), o: u.ex.map((q) => q.opts ? shuffled(q.opts.map((_, k) => k)) : null) });
+  const qs = ord.q.map((i, pos) => {
+    const q = u.ex[i];
+    const head = `<div class="qn">Question ${pos + 1} of ${u.ex.length}</div>`;
     if (q.type === "mc") {
       return `<section class="card q" data-i="${i}">${head}<div class="qt">${rich(q.q)}</div>
-        <div class="opts">${q.opts.map((o, k) => `<button class="opt" data-k="${k}">${o}</button>`).join("")}</div>
+        <div class="opts">${ord.o[i].map((k) => `<button class="opt" data-k="${k}">${q.opts[k]}</button>`).join("")}</div>
         <div class="fb" aria-live="polite"></div></section>`;
     }
     const q2 = rich(q.q.replace("___", "\u0001")).replace("\u0001", `<span class="fillrow"><input type="text" id="f${i}" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Your answer"><button class="btn ghost chk">Check</button></span>`);
@@ -410,7 +412,7 @@ function applyAnswered(u) {
     const card = $(`.q[data-i="${i}"]`); if (!card) return;
     const fb = $(".fb", card);
     if (q.type === "mc") {
-      card.querySelectorAll(".opt").forEach((b, k) => { b.disabled = true; if (k === q.a) b.classList.add("ok"); else if (k === a.c) b.classList.add("no"); });
+      card.querySelectorAll(".opt").forEach((b) => { const k = +b.dataset.k; b.disabled = true; if (k === q.a) b.classList.add("ok"); else if (k === a.c) b.classList.add("no"); });
     } else {
       const inp = $("input", card); inp.value = a.c; inp.disabled = true; inp.classList.add(a.r); $(".chk", card).disabled = true;
     }
@@ -467,7 +469,7 @@ document.addEventListener("click", (e) => {
   const opt = t.closest(".opt");
   if (opt) { const i = +opt.closest(".q").dataset.i, k = +opt.dataset.k; return answer(u, i, { r: k === u.ex[i].a ? "ok" : "no", c: k }); }
   const chk = t.closest(".chk"); if (chk) return checkFill(u, chk.closest(".q"));
-  if (t.closest("#resetU")) { delete progress["u" + u.id]; save(); return render(); }
+  if (t.closest("#resetU")) { delete progress["u" + u.id]; delete DRAWS["q" + u.id]; save(); return render(); }
   const say = t.closest(".say");
   if (say) { try { speechSynthesis.cancel(); const s = new SpeechSynthesisUtterance(say.dataset.say.replace(/ \/ /g, ", ")); s.lang = "es-ES"; speechSynthesis.speak(s); } catch (err) {} return; }
   const en = t.closest(".hide-en .en"); if (en) en.classList.toggle("show");

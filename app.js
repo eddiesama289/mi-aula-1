@@ -345,7 +345,8 @@ function renderNav() {
 }
 
 function renderGrammar(u) {
-  return u.grammar.map((g) => `<section class="card"><h3>${g.t}</h3>${rich(g.body)}</section>`).join("");
+  const pieces = u.grammar.map((g) => `<section class="card"><h3>${g.t}</h3>${rich(g.body)}</section>`);
+  return byClase(u.id, "grammar", pieces) ?? pieces.join("");
 }
 function renderVocab(u) {
   const canSay = "speechSynthesis" in window;
@@ -354,19 +355,22 @@ function renderVocab(u) {
     <div class="legend"><span class="wk-m">el · masculine</span><span class="wk-f">la · feminine</span><span class="wk-v">verb</span><span class="hl">★ starred</span></div>
     <div class="toggles"><label><input type="checkbox" id="hideEn" ${state.hideEn ? "checked" : ""}> Hide English</label>
     <label><input type="checkbox" id="starOnly" ${state.starOnly ? "checked" : ""}> Starred only (${nStar})</label></div></div>`;
-  const groups = u.vocab.map((g) => {
+  const pieces = u.vocab.map((g) => {
     const items = g.items.filter((it) => !state.starOnly || st[it[0]]);
     if (!items.length) return "";
     return `<section class="card"><h3>${g.g}</h3><div class="grid">${items.map((it) => `
     <div class="vrow ${st[it[0]] ? "starred" : ""}"><div class="l">${starBtn(it[0])}<span class="${wordKind(it[0])}">${es(it[0])}</span>${canSay ? `<button class="say" data-say="${it[0].replace(/"/g, "")}" aria-label="Listen to ${it[0]}">🔊</button>` : ""}</div>
     <span class="en">${it[1]}</span></div>`).join("")}</div></section>`;
-  }).join("");
+  });
+  const groups = pieces.join("") ? byClase(u.id, "vocab", pieces) ?? pieces.join("") : "";
   return tools + (groups || `<section class="card"><p>No starred words in this unit yet. Tap ☆ next to a word to star it.</p></section>`);
 }
 function renderPhrases(u) {
   const st = stars();
-  return `<section class="card"><h3>Useful sentences</h3><div>${u.phrases.map((p) => `
-    <div class="vrow ${st[p[0]] ? "starred" : ""}"><div class="l">${starBtn(p[0])}${es(p[0])}</div><span class="en">${p[1]}</span></div>`).join("")}</div></section>`;
+  const pieces = u.phrases.map((p) => `
+    <div class="vrow ${st[p[0]] ? "starred" : ""}"><div class="l">${starBtn(p[0])}${es(p[0])}</div><span class="en">${p[1]}</span></div>`);
+  const card = (inner) => `<section class="card"><h3>Useful sentences</h3><div>${inner}</div></section>`;
+  return byClase(u.id, "phrases", pieces, card) ?? card(pieces.join(""));
 }
 function renderPractice(u) {
   const p = unitProg(u.id);

@@ -147,12 +147,14 @@ function listenOpts(items, i) {
   return d;
 }
 function renderListen(u) {
-  const items = SKILLS[u.id].listen;
+  const items = SKILLS[u.id].listen, grouped = claseGroups(u.id, "listen", items.length);
   const head = `<div class="card summary"><div><h3>Listening</h3><p id="lscore"></p></div><button class="btn ghost" id="lreset">Start again</button></div>
-    ${voiceNote()}<p class="hint">Press <b>Play</b> and listen. Use <b>Slow</b> if it is too fast. You can play each sentence as many times as you like. Sentences 1 to ${items.filter((x) => x.mode === "choose").length}: choose the meaning. The rest: type what you hear.</p>`;
-  const cards = items.map((it, i) => {
+    ${voiceNote()}<p class="hint">Press <b>Play</b> and listen. Use <b>Slow</b> if it is too fast. You can play each sentence as many times as you like. ${grouped ? "Some sentences ask you to choose the meaning, others to type what you hear." : `Sentences 1 to ${items.filter((x) => x.mode === "choose").length}: choose the meaning. The rest: type what you hear.`}</p>`;
+  const pos = [];
+  (grouped ? grouped.flatMap((g) => g.c ? g.idx : []).concat(grouped.flatMap((g) => g.c ? [] : g.idx)) : items.map((_, i) => i)).forEach((i, k) => { pos[i] = k + 1; });
+  const pieces = items.map((it, i) => {
     const audio = `<div class="audio-row"><button class="btn lplay">Play</button><button class="btn ghost lplay" data-slow="1">Slow</button></div>`;
-    const label = `<div class="qn">Sentence ${i + 1} of ${items.length}</div>`;
+    const label = `<div class="qn">Sentence ${pos[i]} of ${items.length}</div>`;
     if (it.mode === "choose") {
       const opts = listenOpts(items, i);
       return `<section class="card lq" data-i="${i}">${label}<div class="qt">Listen and choose the meaning.</div>${audio}
@@ -162,8 +164,8 @@ function renderListen(u) {
     return `<section class="card lq" data-i="${i}">${label}<div class="qt">Listen and type the sentence in Spanish.</div>${audio}
       <span class="lfill"><input type="text" id="lf${i}" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="What you heard"><button class="btn ghost lchk">Check</button></span>
       <div class="fb" aria-live="polite"></div></section>`;
-  }).join("");
-  return head + cards;
+  });
+  return head + (byClase(u.id, "listen", pieces) ?? pieces.join(""));
 }
 function applyListen(u) {
   const items = SKILLS[u.id].listen, p = lprog(u);
@@ -202,15 +204,17 @@ function micNote() {
 function renderSpeak(u) {
   const sk = SKILLS[u.id];
   const enc = (t) => encodeURIComponent(t);
-  const rep = u.phrases.map((p) => `<section class="card sc" data-target="${enc(p[0])}">
+  const repP = u.phrases.map((p) => `<section class="card sc" data-target="${enc(p[0])}">
     <div class="vrow"><div class="l">${es(p[0])}</div><span class="en">${p[1]}</span></div>
     <div class="audio-row"><button class="btn ghost splay" data-t="${enc(p[0])}">Play</button><button class="btn ghost splay" data-t="${enc(p[0])}" data-slow="1">Slow</button><button class="btn srec">Record</button></div>
-    <div class="sres" aria-live="polite"></div></section>`).join("");
-  const talk = sk.talk.map((q) => `<section class="card sc">
+    <div class="sres" aria-live="polite"></div></section>`);
+  const rep = byClase(u.id, "phrases", repP, null, true) ?? repP.join("");
+  const talkP = sk.talk.map((q) => `<section class="card sc">
     <div class="qt">${es(q.q)}</div><p class="muted">${q.qen}</p>
     <div class="audio-row"><button class="btn ghost splay" data-t="${enc(q.q)}">Hear the question</button><button class="btn srec">Record my answer</button><button class="btn ghost smodel">Show a model answer</button></div>
     <div class="sres" aria-live="polite"></div>
-    <div class="model" hidden><p>${es(q.model)}</p><p class="muted">${q.men}</p><div class="audio-row"><button class="btn ghost splay" data-t="${enc(q.model)}">Play the model</button></div></div></section>`).join("");
+    <div class="model" hidden><p>${es(q.model)}</p><p class="muted">${q.men}</p><div class="audio-row"><button class="btn ghost splay" data-t="${enc(q.model)}">Play the model</button></div></div></section>`);
+  const talk = byClase(u.id, "talk", talkP) ?? talkP.join("");
   return `${voiceNote()}${micNote()}
     <h3 class="sec">1. Repeat after me</h3>${rep}
     <h3 class="sec">2. Answer out loud</h3><p class="muted">Listen to the question, answer in Spanish, then open the model answer to compare.</p>${talk}`;

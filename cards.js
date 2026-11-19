@@ -8,7 +8,31 @@
 let WC = null; /* { uid, deck: [{es, en, dir}], i, right, missed: [], checked, last } */
 const WC_PREF = { set: "all", dir: "mix" };
 
-/* ---------- the word list ---------- */
+/* ---------- the word list ----------
+   Cards test the main word only: articles are dropped (el profesor / la profesora → profesor / profesora; the word
+   keeps its gender colour), grammar words on their own (en, entre, desde, más… que…) are left out, and
+   «preposition + word» items are cut to the word. Set phrases where the small word changes the meaning
+   (a veces, cerca de, de repente, por supuesto…) stay whole. */
+const WC_SKIP = new Set(["en", "entre", "desde", "durante", "¿desde cuándo?", "desde… hasta…", "desde hace", "más… que", "menos… que", "igual de", "tan… como", "tanto… como"]);
+const WC_FIX = {
+  "por trabajo": ["trabajo", "work"], "por viajes": ["viajes", "trips, travel"], "por estudios": ["estudios", "studies"],
+  "por mi pareja": ["pareja", "partner"], "por mi familia": ["familia", "family"], "por curiosidad": ["curiosidad", "curiosity"],
+  "con tarjeta": ["tarjeta", "card"], "en efectivo": ["efectivo", "cash"], "con hielo": ["hielo", "ice"], "sin azúcar": ["azúcar", "sugar"],
+  "de madera": ["madera", "wood"], "de metal": ["metal", "metal"], "de cristal": ["cristal", "glass"], "de plástico": ["plástico", "plastic"],
+  "de piel": ["piel", "leather"], "de algodón": ["algodón", "cotton"], "en parejas": ["parejas", "pairs"], "en grupos": ["grupos", "groups"]
+};
+function wcMain(es, en) {
+  const key = es.trim().toLowerCase();
+  if (WC_SKIP.has(key)) return null;
+  if (WC_FIX[key]) return { es: WC_FIX[key][0], en: WC_FIX[key][1] };
+  const strip = (a) => a.trim().replace(/^\((?:el|la|los|las)(?: \/ (?:el|la|los|las))?\)\s*/i, "").replace(/^(el|la|los|las|un|una|unos|unas)\s+(?=\S)/i, "");
+  const e = es.replace(/\((?:el|la|los|las)(?: \/ (?:el|la|los|las))?\)\s*/gi, "");
+  let parts = e.split(" / ");
+  parts = parts.map((p) => p.split(/,\s*/).map(strip).join(", "));
+  parts = parts.filter((p, i) => parts.indexOf(p) === i);
+  const main = parts.join(" / ").replace(/\/s\b/g, "");
+  return { es: main, en, full: es };
+}
 function wcWords(u, set) {
   const map = typeof CLASE_MAP !== "undefined" && CLASE_MAP[u.id] && CLASE_MAP[u.id].vocab, st = stars(), seen = new Set(), out = [];
   u.vocab.forEach((g, gi) => {
@@ -16,8 +40,9 @@ function wcWords(u, set) {
     if (set !== "all" && set !== "star" && String(c) !== set) return;
     g.items.forEach((it) => {
       if (set === "star" && !st[it[0]]) return;
-      const k = wcEs(it[0]).join("|"); if (seen.has(k)) return; seen.add(k);
-      out.push({ es: it[0], en: it[1] });
+      const w = wcMain(it[0], it[1]); if (!w) return;
+      const k = wcEs(w.es).join("|"); if (seen.has(k)) return; seen.add(k);
+      out.push(w);
     });
   });
   return out;
@@ -59,6 +84,9 @@ function wcCheck(card, typed) {
   const acc = alts.find((a) => stripAcc(a) === stripAcc(t));
   if (acc) return { r: "ok", n: `Watch the accent: ${acc}.` };
   const bare = (x) => x.replace(WC_ART, "");
+  if (WC_ART.test(t) && alts.includes(bare(t))) return { r: "ok" };
+  const accBare = WC_ART.test(t) && alts.find((a) => stripAcc(a) === stripAcc(bare(t)));
+  if (accBare) return { r: "ok", n: `Watch the accent: ${accBare}.` };
   const art = alts.find((a) => WC_ART.test(a) && bare(a) === bare(t)) || alts.find((a) => WC_ART.test(a) && stripAcc(bare(a)) === stripAcc(bare(t)));
   if (art) return WC_ART.test(t) ? { r: "no", n: `Check the article: ${art}.` } : { r: "ok", n: `Learn it with its article: ${art}.` };
   return { r: "no" };
@@ -73,10 +101,10 @@ function wcInner(u) {
   if (WC.i >= WC.deck.length) return wcEnd(u);
   const c = WC.deck[WC.i], showEs = c.dir === "es", canSay = "speechSynthesis" in window;
   const prompt = showEs
-    ? `<div class="wc-word"><span class="${wordKind(c.es)}">${es(c.es)}</span>${canSay ? ` <button class="say" data-say="${escH(c.es.replace(/"/g, ""))}" aria-label="Listen">🔊</button>` : ""}</div>`
+    ? `<div class="wc-word"><span class="${wordKind(c.full || c.es)}">${es(c.es)}</span>${canSay ? ` <button class="say" data-say="${escH(c.es.replace(/"/g, ""))}" aria-label="Listen">🔊</button>` : ""}</div>`
     : `<div class="wc-word wc-eng">${escH(c.en)}</div>`;
   const last = WC.last;
-  const fb = last ? `<div class="fb ${last.r}" aria-live="polite">${last.r === "ok" ? "Correct." : "Not quite."} ${es(c.es)} = ${escH(c.en)}${last.n ? ` <span class="muted">${escH(last.n)}</span>` : ""}</div>` : `<div class="fb" aria-live="polite"></div>`;
+  const fb = last ? `<div class="fb ${last.r}" aria-live="polite">${last.r === "ok" ? "Correct." : "Not quite."} ${es(c.full || c.es)} = ${escH(c.en)}${last.n ? ` <span class="muted">${escH(last.n)}</span>` : ""}</div>` : `<div class="fb" aria-live="polite"></div>`;
   const btns = last
     ? `<button type="button" class="btn" data-wc="next">${WC.i + 1 === WC.deck.length ? "See my score" : "Next card"}</button>${last.r === "no" ? `<button type="button" class="btn ghost" data-wc="mine">I was right</button>` : ""}`
     : `<button type="button" class="btn" data-wc="check">Check</button><button type="button" class="btn ghost" data-wc="skip">I don't know</button>`;
@@ -104,14 +132,14 @@ function wcEnd(u) {
   const miss = WC.missed;
   return `<h3>Word cards · done</h3>
     <div class="wc-score"><span class="pill ${pct >= 80 ? "ok" : pct >= 50 ? "mid" : "no"}">${WC.right} / ${n}</span> <span class="muted">${pct >= 90 ? "Excellent!" : pct >= 70 ? "Very good." : pct >= 50 ? "Not bad. Practise the missed words." : "Keep going: practise the missed words."}</span></div>
-    ${miss.length ? `<p><b>Words to review (${miss.length})</b></p><ul class="wc-miss">${miss.map((c) => `<li>${es(c.es)} <span class="muted">= ${escH(c.en)}</span></li>`).join("")}</ul>` : `<p>You knew every word. ¡Muy bien!</p>`}
+    ${miss.length ? `<p><b>Words to review (${miss.length})</b></p><ul class="wc-miss">${miss.map((c) => `<li>${es(c.full || c.es)} <span class="muted">= ${escH(c.en)}</span></li>`).join("")}</ul>` : `<p>You knew every word. ¡Muy bien!</p>`}
     <div class="wc-row">${miss.length ? `<button type="button" class="btn" data-wc="missed">Practise the ${miss.length} missed ${miss.length === 1 ? "word" : "words"}</button>` : ""}<button type="button" class="btn ${miss.length ? "ghost" : ""}" data-wc="again">New round</button></div>`;
 }
 
 /* ---------- actions ---------- */
 function wcDeal(u, list) {
   const dir = () => WC_PREF.dir === "mix" ? (Math.random() < 0.5 ? "es" : "en") : WC_PREF.dir;
-  WC = { uid: u.id, deck: shuffled(list).map((w) => ({ es: w.es, en: w.en, dir: dir() })), i: 0, right: 0, missed: [], last: null };
+  WC = { uid: u.id, deck: shuffled(list).map((w) => ({ es: w.es, en: w.en, full: w.full, dir: dir() })), i: 0, right: 0, missed: [], last: null };
 }
 function wcRefresh(focus) {
   const box = document.getElementById("wc"); if (!box) return;

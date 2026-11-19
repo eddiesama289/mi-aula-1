@@ -1,4 +1,4 @@
-/* Which daily class (clase 1–3 of the unidad) teaches each item of units 6–9.
+/* Which daily class (clase 1–3 of the unidad) teaches each item of units 6–9 (units 1–5: lessons-1-5.js).
    One number per item, in the order the item appears in UNITS / SKILLS. 0 = extra material from the book that the
    classes do not cover. Clase 4 of every unidad is revision, so it has no items of its own.
    Loaded after lessons.js (uses LESSONS for the titles) and before app.js. */

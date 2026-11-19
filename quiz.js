@@ -34,6 +34,9 @@ function rndInt(n) { return Math.floor(Math.random() * n); }
 function shuffled(arr) { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rndInt(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 const GENERIC_I = /^(write the missing word|write the correct form|complete|fill in|write the answer)/i;
 function poolable(s) { return !s.bank && !s.text; }
+/* Matching sets only share pairs with sets of the same kind: "word → its meaning" sets pool together,
+   other kinds (opposites, numbers, nationalities, job → workplace…) only with sets that have the same instruction. */
+function matchKind(s) { return /meaning|English|^Connect the words/i.test(s.i || "") ? "meaning" : s.i; }
 function itemKeys(type, it) {
   return type === "match" ? [it[0], it[1]].map((x) => "m " + String(x).toLowerCase()) : [type + " " + JSON.stringify(type === "mc" ? it[0] : it).toLowerCase()];
 }
@@ -49,7 +52,7 @@ function drawSet(set, sources, taken) {
   const own = set.items.map((it) => ({ it, src: set })), foreign = [];
   if (poolable(set)) {
     const seen = new Set(taken || []); own.forEach((o) => keys(o.it).forEach((k) => seen.add(k)));
-    sources.filter((s) => s !== set && s.type === set.type && poolable(s)).forEach((s) => s.items.forEach((it) => {
+    sources.filter((s) => s !== set && s.type === set.type && poolable(s) && (set.type !== "match" || matchKind(s) === matchKind(set))).forEach((s) => s.items.forEach((it) => {
       const ks = keys(it); if (ks.some((k) => seen.has(k))) return;
       ks.forEach((k) => seen.add(k)); foreign.push({ it, src: s });
     }));

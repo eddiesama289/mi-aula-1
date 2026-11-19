@@ -18,9 +18,9 @@ The exercises and notes are original practice material and are not copied from t
 
 This repo is connected to Vercel. Every push to `main` deploys the site to production.
 
-From Unidad 6 on, the Practice tab is split into **Lesson 1–4** to match the daily classes (three new-material lessons plus a revision lesson); the lesson tags and extra exercises live in `lessons.js`.
+From Unidad 1 on, every unidad is taught in four classes (three new-material lessons plus a revision lesson): the Practice tab is split into **Lesson 1–4** and each part of every tab is marked with the clase that teaches it. Unidades 1–5 are set up in `lessons-1-5.js`, Unidades 6–9 in `lessons.js` and `clases.js`. Aula 1 classes are numbered 1–36 (Unidad 0 is a free introduction).
 
 Aula Plus 2 lives in `aula2.js` (the loader) and one file per unit, `aula2-u1.js` to `aula2-u10.js`. Every unit
-is taught in four classes like Unidades 6–9 of book 1, so each part of every tab is tagged with its clase and every
+is taught in four classes like the units of book 1, so each part of every tab is tagged with its clase and every
 practice set with its lesson. Book 2 units use ids 101–110 so their saved progress never mixes with book 1.
 The Aula Plus 1 final exam is in `final-exam.js`.

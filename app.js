@@ -379,8 +379,15 @@ function renderVocab(u) {
     <div class="vrow ${st[it[0]] ? "starred" : ""}"><div class="l">${starBtn(it[0])}<span class="${wordKind(it[0])}">${es(it[0])}</span>${canSay ? `<button class="say" data-say="${it[0].replace(/"/g, "")}" aria-label="Listen to ${it[0]}">🔊</button>` : ""}</div>
     <span class="en">${it[1]}</span></div>`).join("")}</div></section>`;
   });
-  const groups = pieces.join("") ? byClase(u.id, "vocab", pieces) ?? pieces.join("") : "";
-  return tools + (groups || `<section class="card"><p>No starred words in this unit yet. Tap ☆ next to a word to star it.</p></section>`);
+  let groups = pieces.join("") ? byClase(u.id, "vocab", pieces) ?? pieces.join("") : "";
+  if (!groups) groups = `<section class="card"><p>No starred words in this unit yet. Tap ☆ next to a word to star it.</p></section>`;
+  /* Word cards (cards.js) go right under «Clase 4 · Repaso»; units without classes get them at the end */
+  if (typeof wordCards === "function") {
+    const cards = wordCards(u), end = claseGroups(u.id, "vocab", u.vocab.length) ? claseEnd(u.id) : "";
+    groups = end && groups.includes(end) ? groups.replace(end, () => end + cards)
+      : groups + `<div class="clase-line"><span>Word cards</span><small>Test yourself on every word of this unidad.</small></div>` + cards;
+  }
+  return tools + groups;
 }
 function renderPhrases(u) {
   const st = stars();

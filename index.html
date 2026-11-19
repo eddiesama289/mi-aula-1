@@ -202,6 +202,28 @@ th { color: var(--muted); font-weight: 800; font-size: 0.76rem; text-transform: 
 .clase-line span { font-family: var(--font-display); font-weight: 800; font-size: 1.15rem; letter-spacing: .01em; }
 .clase-line small { color: var(--muted); font-size: 0.85rem; }
 .clase-line.extra { --cl: var(--muted); border-bottom-style: dashed; border-bottom-width: 3px; }
+/* Word cards (cards.js) */
+.wc { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+.wc h3 { margin: 0; }
+.wc-opts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.wc-lab { font-weight: 800; font-size: 0.85rem; color: var(--muted); min-width: 70px; }
+.wc-chip { font: inherit; font-weight: 700; font-size: 0.9rem; color: var(--fg); background: var(--surface-2); border: 2px solid var(--line); border-radius: 999px; padding: 5px 12px; cursor: pointer; }
+.wc-chip small { color: var(--muted); font-weight: 800; margin-left: 2px; }
+.wc-chip.on { background: var(--accent-soft); border-color: var(--accent); }
+.wc-chip:disabled { opacity: .45; cursor: default; }
+.wc-top { display: flex; align-items: center; gap: 10px; }
+.wc-link { margin-left: auto; font: inherit; font-size: 0.85rem; font-weight: 700; color: var(--muted); background: none; border: 0; text-decoration: underline; cursor: pointer; }
+.wc-bar { height: 8px; border-radius: 999px; background: var(--surface-2); border: 1.5px solid var(--line); overflow: hidden; }
+.wc-bar span { display: block; height: 100%; background: var(--uc); }
+.wc-ask { margin: 0; }
+.wc-word { font-family: var(--font-display); font-size: 1.7rem; font-weight: 800; line-height: 1.25; text-align: center; padding: 14px 8px; border: 2px dashed var(--line); border-radius: var(--r); background: var(--surface-2); }
+.wc-word.wc-eng { color: var(--fg); }
+.wc-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.wc-row input { flex: 1 1 200px; min-width: 0; font: inherit; font-size: 1.05rem; padding: 9px 12px; border: 2px solid var(--ink); border-radius: 10px; background: var(--surface); color: var(--fg); }
+.wc-row input.ok { border-color: var(--ok); background: var(--ok-bg); } .wc-row input.no { border-color: var(--bad); background: var(--bad-bg); }
+.wc-score { display: flex; align-items: center; gap: 10px; font-size: 1.1rem; }
+.wc-miss { columns: 2 220px; margin: 0; padding-left: 18px; }
+.wc-miss li { break-inside: avoid; margin-bottom: 4px; }
 .panel > .clase-line:first-child, .panel > .card + .clase-line:first-of-type { margin-top: 6px; }
 .x-lessons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
 .x-lnav { display: flex; flex-direction: column; gap: 2px; text-align: left; font: inherit; color: var(--fg); background: var(--surface); border: 2px solid var(--ink); border-radius: var(--r); box-shadow: 3px 3px 0 var(--shadow); padding: 10px 12px; cursor: pointer; transition: transform .12s, box-shadow .12s; }
@@ -368,6 +390,7 @@ footer { color: var(--muted); font-size: 0.85rem; border-top: 2px dashed var(--l
 <script src="aula2-u8.js?v=0c2cc915"></script>
 <script src="aula2-u9.js?v=4d0daa34"></script>
 <script src="aula2-u10.js?v=b26a087c"></script>
-<script src="app.js?v=88f00871"></script>
+<script src="cards.js?v=f39c5b84"></script>
+<script src="app.js?v=664f1020"></script>
 </body>
 </html>
